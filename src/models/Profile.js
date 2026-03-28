@@ -573,8 +573,6 @@ privacySettings: {
 );
 
 // Indexes
-profileSchema.index({ user: 1 });
-profileSchema.index({ profileId: 1 });
 profileSchema.index({ status: 1 });
 profileSchema.index({ 'basicInfo.gender': 1 });
 profileSchema.index({ maritalStatus: 1 });

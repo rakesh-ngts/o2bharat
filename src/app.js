@@ -35,6 +35,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
+//cron job
+
+// app.js mein register karo
+app.use('/api/health', require('./routes/health.route'));
+
 // CORS configuration
 app.use(cors({
   origin: config.CORS.ORIGIN,
@@ -81,16 +86,6 @@ if (config.NODE_ENV === 'development') {
 } else {
   app.use(morgan('combined', { stream: logger.stream }));
 }
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
-    environment: config.NODE_ENV
-  });
-});
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // API Routes

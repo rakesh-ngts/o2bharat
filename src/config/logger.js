@@ -1,53 +1,51 @@
+// config/logger.js — pura replace karo
 const winston = require('winston');
-const path = require('path');
+const path    = require('path');
 
-// Define log format
-const logFormat = winston.format.combine(
+const isProd = process.env.NODE_ENV === 'production';
+
+const devFormat = winston.format.combine(
+  winston.format.colorize({ all: true }),
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
-
-// Define console format for development
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.printf(({ timestamp, level, message, stack }) => {
     return `${timestamp} [${level}]: ${stack || message}`;
   })
 );
 
-// Create logger instance
+const jsonFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
+
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  transports: [
-    // Write all logs to console
-    new winston.transports.Console({
-      format: consoleFormat
-    }),
-    // Write all logs with level 'error' to error.log
-    new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    }),
-    // Write all logs to combined.log
-    new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
+  level     : isProd ? 'warn' : 'debug',
+  // ✅ exceptionHandlers hata do — crash logger mein nahi, server.js mein handle karo
+  exitOnError: false,
+  transports: isProd
+    ? [
+        new winston.transports.Console({ format: jsonFormat }),
+        new winston.transports.File({
+          filename: path.join(__dirname, '../../logs/error.log'),
+          level   : 'error',
+          maxsize : 5 * 1024 * 1024,
+          maxFiles: 5,
+        }),
+        new winston.transports.File({
+          filename: path.join(__dirname, '../../logs/combined.log'),
+          maxsize : 5 * 1024 * 1024,
+          maxFiles: 5,
+        }),
+      ]
+    : [
+        // ✅ Development — sirf colorful console
+        new winston.transports.Console({ format: devFormat }),
+      ],
 });
 
-// Create a stream object for Morgan HTTP logger
 logger.stream = {
-  write: (message) => {
-    logger.info(message.trim());
-  }
+  write: (message) => logger.http(message.trim()),
 };
 
 module.exports = logger;

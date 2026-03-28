@@ -1,62 +1,50 @@
-const app = require('./app');
-const config = require('./config');
-const logger = require('./config/logger');
+const app      = require('./app');
+const config   = require('./config');
+const logger   = require('./config/logger');
+const mongoose = require('mongoose');
+const initCrons = require('../src/crons/index');
+require('dotenv').config();
 
-// Create uploads directory if not exists
 const fs = require('fs');
-const uploadDirs = ['uploads', 'uploads/photos', 'logs'];
-uploadDirs.forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+['uploads', 'uploads/photos', 'logs'].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-// Start server
 const PORT = config.PORT;
 
-const server = app.listen(PORT, () => {
-  logger.info(`
-  ╔═══════════════════════════════════════════════════════════╗
-  ║                                                           ║
-  ║   🚀 Matrimonial API Server Started                       ║
-  ║                                                           ║
-  ║   Environment: ${config.NODE_ENV.padEnd(43)}║
-  ║   Port: ${String(PORT).padEnd(51)}║
-  ║   MongoDB: ${config.MONGODB_URI.split('@').pop().padEnd(47)}║
-  ║                                                           ║
-  ║   API: http://localhost:${PORT}/api                        ║
-  ║   Health: http://localhost:${PORT}/api/health              ║
-  ║                                                           ║
-  ╚═══════════════════════════════════════════════════════════╝
-  `);
-});
+// ✅ Pehle DB connect karo, phir server + crons start karo
+mongoose.connect(config.MONGODB_URI).then(() => {
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  logger.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  logger.error(err.stack);
-  
-  server.close(() => {
-    process.exit(1);
+  const server = app.listen(PORT, () => {
+    logger.info(`Server started — port ${PORT} — env ${config.NODE_ENV}`);
+
+    // ✅ Server ready hone ke baad crons start karo
+    initCrons();
   });
-});
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  logger.error(err.stack);
-  
+  // Unhandled rejections
+  process.on('unhandledRejection', (err) => {
+    logger.error(`UNHANDLED REJECTION: ${err.message}`, { stack: err.stack });
+    server.close(() => process.exit(1));
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    logger.warn('SIGTERM received — shutting down gracefully');
+    server.close(() => {
+      mongoose.connection.close();
+      logger.info('Process terminated.');
+      process.exit(0);
+    });
+  });
+
+}).catch((err) => {
+  logger.error(`MongoDB connection failed: ${err.message}`);
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('👋 SIGTERM RECEIVED. Shutting down gracefully');
-  server.close(() => {
-    logger.info('💥 Process terminated!');
-  });
+// Uncaught exceptions — DB connect se pehle bhi catch ho
+process.on('uncaughtException', (err) => {
+  logger.error(`UNCAUGHT EXCEPTION: ${err.message}`, { stack: err.stack });
+  process.exit(1);
 });
-
-module.exports = server;

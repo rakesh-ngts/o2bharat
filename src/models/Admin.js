@@ -59,7 +59,6 @@ const adminSchema = new mongoose.Schema(
 );
 
 // Indexes
-adminSchema.index({ email: 1 });
 adminSchema.index({ status: 1 });
 
 // Pre-save middleware
