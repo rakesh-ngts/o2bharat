@@ -8,32 +8,50 @@ const { calculateAge, calculateMatchScore } = require('../utils/helpers');
 /**
  * Create or update user profile
  */
+// ✅ Fix — service mein user update bhi add karo
 const createUpdateProfile = async (userId, profileData) => {
+
+  // User model fields alag nikalo
+  const userFields = {};
+  const userAllowedFields = ['name', 'dob', 'gender', 'address', 'community', 'caste', 'subCaste'];
+  
+  userAllowedFields.forEach(field => {
+    if (profileData[field] !== undefined) {
+      userFields[field] = profileData[field];
+      delete profileData[field]; // profile data se hata do
+    }
+  });
+
+  // User update karo agar koi field aaya ho
+  if (Object.keys(userFields).length > 0) {
+    await User.findByIdAndUpdate(userId, userFields, { runValidators: true });
+  }
+
+  // Profile update/create
   let profile = await Profile.findOne({ user: userId });
 
   if (profile) {
-    // Update existing profile
     Object.keys(profileData).forEach(key => {
-      if (typeof profileData[key] === 'object' && !Array.isArray(profileData[key])) {
-        profile[key] = { ...profile[key].toObject(), ...profileData[key] };
+      if (
+        typeof profileData[key] === 'object' &&
+        !Array.isArray(profileData[key]) &&
+        profileData[key] !== null
+      ) {
+        // ✅ null safe
+        profile[key] = { 
+          ...(profile[key]?.toObject?.() || {}), 
+          ...profileData[key] 
+        };
       } else {
         profile[key] = profileData[key];
       }
     });
-    
-    profile.profileCompletionPercentage = calculateProfileCompletion(profile);
-    await profile.save();
   } else {
-    // Create new profile
-    profile = await Profile.create({
-      user: userId,
-      ...profileData,
-      profileCompletionPercentage: 0
-    });
-    
-    profile.profileCompletionPercentage = calculateProfileCompletion(profile);
-    await profile.save();
+    profile = new Profile({ user: userId, ...profileData });
   }
+
+  profile.profileCompletionPercentage = calculateProfileCompletion(profile);
+  await profile.save();
 
   return profile;
 };
@@ -444,7 +462,7 @@ const toggleProfileStatus = async (userId, newStatus) => {
     { $set: { status: newStatus } },
     { new: true, runValidators: true }
   );
-console.log(profile)
+
   if (!profile) {
     throw new ApiError(404, 'User not found');
   }

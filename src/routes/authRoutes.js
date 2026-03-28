@@ -28,9 +28,9 @@ const registerValidation = [
     .isLength({ min: 2, max: 50 })
     .withMessage('Name must be between 2 and 50 characters'),
 
-  body('address')
-    .notEmpty()
-    .withMessage('Address is required'),
+  // body('address')
+  //   .notEmpty()
+  //   .withMessage('Address is required'),
 
   body('dob')
     .notEmpty()
@@ -48,17 +48,15 @@ const registerValidation = [
       return true;
     }),
 
-  body('caste')
-    .notEmpty()
-    .withMessage('Caste is required'),
+  // body('caste')
+  //   .notEmpty()
+  //   .withMessage('Caste is required'),
 
-  body('subCaste')
-    .notEmpty()
-    .withMessage('Caste is required'),
+ 
 
-  body('community')
-    .notEmpty()
-    .withMessage('Caste is required'),
+  // body('community')
+  //   .notEmpty()
+  //   .withMessage('Caste is required'),
 
   // body('profilePhoto')
   //   .optional()

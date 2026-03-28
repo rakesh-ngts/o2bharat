@@ -66,11 +66,7 @@ const userSchema = new mongoose.Schema(
      trim: true,
       required: [true, "Caste is required"],
     },
-    subCaste: {
-      type: String,
-      trim: true,
-      default: null,
-    },
+ 
     gender: {
         type: String,
         enum: Object.values(GENDER),

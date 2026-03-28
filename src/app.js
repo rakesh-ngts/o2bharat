@@ -30,6 +30,13 @@ const app = express();
 // Connect to database
 connectDB();
 
+// Request logging
+if (config.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined', { stream: logger.stream }));
+}
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -38,7 +45,14 @@ app.use(helmet({
 //cron job
 
 // app.js mein register karo
-app.use('/api/health', require('./routes/health.route'));
+
+
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Matrimonial API is running.',
+  });
+});
 
 // CORS configuration
 app.use(cors({
@@ -80,15 +94,11 @@ if (config.NODE_ENV === 'production') {
   app.use('/api/', apiLimiter);
 }
 
-// Request logging
-if (config.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined', { stream: logger.stream }));
-}
+
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // API Routes
+// app.use('/api/health', require('./routes/health.route'));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/matches', matchRoutes);

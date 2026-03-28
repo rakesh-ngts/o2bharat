@@ -1,6 +1,7 @@
 // src/crons/healthCheck.cron.js
 const cron  = require('node-cron');
 const axios = require('axios');
+const logger = require('../config/logger')
 
 const healthCheckCron = () => {
   // Har 10 minute mein chalega

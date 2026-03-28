@@ -38,7 +38,6 @@ const register = async (userData) => {
     dob,
     caste,
     community,
-    subCaste,
     gender,
     profilePhoto,
   } = userData;
@@ -60,7 +59,6 @@ const register = async (userData) => {
     dob: new Date(dob),
     caste,
     community,
-    subCaste,
     gender,
     profilePhoto,
   });

@@ -148,9 +148,8 @@ const uploadPhoto = async (req, res, next) => {
 
     const profile = await profileService.uploadPhoto(userId, photoData);
 
-    res.status(200).json(
-      new ApiResponse(200, profile, 'Photo uploaded successfully.')
-    );
+  return ApiResponse.success(res, profile, 'Photo uploaded successfully.')
+  
   } catch (error) {
     next(error);
   }
@@ -181,9 +180,8 @@ const uploadMultiplePhotos = async (req, res, next) => {
       profile = await profileService.uploadPhoto(userId, photoData);
     }
 
-    res.status(200).json(
-      new ApiResponse(200, profile, 'Photos uploaded successfully.')
-    );
+    return ApiResponse(res, profile, 'Photos uploaded successfully.')
+  
   } catch (error) {
     next(error);
   }
@@ -319,9 +317,8 @@ const activateProfile = async (req, res, next) => {
 
     const profile = await profileService.toggleProfileStatus(userId, PROFILE_STATUS.ACTIVE);
 
-    res.status(200).json(
-      new ApiResponse(200, profile, 'Profile activated successfully.')
-    );
+     return ApiResponse.success(res, profile, 'Profile activated successfully.')
+  
   } catch (error) {
     next(error);
   }

@@ -48,12 +48,11 @@ privacySettings: {
     
     // ============ BASIC INFORMATION ============
     basicInfo: {
-      name: {
-        type: String,
-        required: [true, 'Name is required'],
-        trim: true,
-        maxlength: [100, 'Name cannot exceed 100 characters'],
-      },
+         subCaste: {
+      type: String,
+      trim: true,
+      default: null,
+    },
       
       // dateOfBirth: {
       //   type: Date,
