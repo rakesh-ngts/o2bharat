@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { generateFilename } = require('../utils/helpers');
 const { PROFILE_STATUS} = require("../utils/constants");
+const User = require('../models/User');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -56,6 +57,64 @@ const createUpdateProfile = async (req, res, next) => {
   
       return ApiResponse.success(res, profile, 'Profile saved successfully.')
    
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Edit user profile (PUT - Complete update of user and profile)
+ * @route PUT /api/profile
+ * @access Private
+ */
+const editProfile = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const updateData = req.body;
+
+    const result = await profileService.editProfile(userId, updateData);
+
+    return ApiResponse.success(res, result, 'Profile updated successfully.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update profile photo (User model's profilePhoto field)
+ * @route PUT /api/profile/photo
+ * @access Private
+ */
+const updateProfilePhoto = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    if (!req.file) {
+      throw new ApiError(400, 'No file uploaded.');
+    }
+
+    const photoUrl = `/uploads/photos/${req.file.filename}`;
+
+    // Update user's profilePhoto
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profilePhoto: photoUrl },
+      { new: true, runValidators: true }
+    );
+
+    // Also add to profile photos array
+    const photoData = {
+      url: photoUrl,
+      publicId: req.file.filename,
+      isProfilePicture: true,
+    };
+
+    await profileService.uploadPhoto(userId, photoData);
+
+    return ApiResponse.success(res, { 
+      profilePhoto: photoUrl,
+      user: user 
+    }, 'Profile photo updated successfully.');
   } catch (error) {
     next(error);
   }
@@ -235,7 +294,7 @@ const setProfilePicture = async (req, res, next) => {
 const searchProfiles = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { page, limit, ...searchParams } = req.query;
+  const { page, limit, ...searchParams } = { ...req.query, ...req.body };
 
     const result = await profileService.searchProfiles(
       userId,
@@ -244,9 +303,8 @@ const searchProfiles = async (req, res, next) => {
       parseInt(limit) || 20
     );
 
-    res.status(200).json(
-      new ApiResponse(200, result, 'Search results fetched successfully.')
-    );
+   return ApiResponse.success(res, result, 'Search results fetched successfully.')
+  
   } catch (error) {
     next(error);
   }
@@ -379,6 +437,8 @@ const uploadMultipleMiddleware = upload.array('photos', 10);
 
 module.exports = {
   createUpdateProfile,
+  editProfile,
+  updateProfilePhoto,
   getMyProfile,
   getProfileById,
   updateProfileSection,

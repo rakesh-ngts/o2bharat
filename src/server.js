@@ -12,7 +12,7 @@ const fs = require('fs');
 
 const PORT = config.PORT;
 
-// ✅ Pehle DB connect karo, phir server + crons start karo
+
 mongoose.connect(config.MONGODB_URI).then(() => {
 
   const server = app.listen(PORT, () => {

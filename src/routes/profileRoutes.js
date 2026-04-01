@@ -10,6 +10,17 @@ router.use(protect);
 
 // Profile CRUD
 router.post('/', profileController.createUpdateProfile);
+
+// PUT - Edit Profile (updates both User and Profile)
+router.put('/', profileController.editProfile);
+
+// PUT - Update Profile Photo (User model's profilePhoto)
+router.put(
+  '/photo',
+  profileController.uploadMiddleware,
+  profileController.updateProfilePhoto
+);
+
 router.get('/', profileController.getMyProfile);
 router.get('/stats', profileController.getProfileStats);
 router.get('/completion', profileController.getProfileCompletion);
@@ -57,7 +68,8 @@ router.patch(
 );
 
 // Profile search
-router.get('/search', profileController.searchProfiles);
+router.post('/search', profileController.searchProfiles);
+router.get('/search', profileController.searchProfiles);   
 
 // View other profile
 router.get(

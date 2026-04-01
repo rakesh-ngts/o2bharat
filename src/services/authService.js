@@ -63,11 +63,31 @@ const register = async (userData) => {
     profilePhoto,
   });
 
+  // Auto-create profile for the new user
+  const profile = await Profile.create({
+    user: user._id,
+    basicInfo: {
+      subCaste: null,
+      timeOfBirth: null,
+      placeOfBirth: '',
+      about: '',
+    },
+    maritalStatus: 'never_married',
+    motherTongue: 'Hindi',
+    languages: ['Hindi'],
+    status: 'draft',
+  });
+
+  // Update user with profile reference
+  user.profileId = profile._id;
+  await user.save({ validateBeforeSave: false });
+
   const userResponse = user.toObject();
   delete userResponse.password;
 
   return {
     user: userResponse,
+    profile: profile,
   };
 };
 

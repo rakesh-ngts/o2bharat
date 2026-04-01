@@ -432,9 +432,9 @@ const options = {
       // ═══════════════════════════════════════════════
 
       "/profile": {
-        post: {
+        put: {
           tags: ["Profile"],
-          summary: "Create or update user profile",
+          summary: "Edit profile",
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -473,213 +473,216 @@ const options = {
             404: { description: "Profile not found." },
           },
         },
-      },
+      }, 
 
-      "/profile/{id}": {
-        get: {
-          tags: ["Profile"],
-          summary: "Get profile by ID (also records a view)",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: { type: "string" },
-              description: "Profile ID",
-            },
-          ],
-          responses: {
-            200: { description: "Profile fetched successfully." },
-            404: { description: "Profile not found." },
-          },
-        },
-      },
+      // "/profile/{id}": {
+      //   get: {
+      //     tags: ["Profile"],
+      //     summary: "Get profile by ID (also records a view)",
+      //     security: [{ bearerAuth: [] }],
+      //     parameters: [
+      //       {
+      //         name: "id",
+      //         in: "path",
+      //         required: true,
+      //         schema: { type: "string" },
+      //         description: "Profile ID",
+      //       },
+      //     ],
+      //     responses: {
+      //       200: { description: "Profile fetched successfully." },
+      //       404: { description: "Profile not found." },
+      //     },
+      //   },
+      // },
 
-      "/profile/section/{section}": {
-        patch: {
-          tags: ["Profile"],
-          summary: "Update a specific profile section",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "section",
-              in: "path",
-              required: true,
-              schema: {
-                type: "string",
-                enum: [
-                  "basicInfo",
-                  "astroDetails",
-                  "physicalDetails",
-                  "education",
-                  "career",
-                  "familyDetails",
-                  "address",
-                  "lifestyle",
-                  "aboutMe",
-                ],
-              },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { type: "object" },
-              },
-            },
-          },
-          responses: {
-            200: { description: "Section updated successfully." },
-            401: { description: "Unauthorized." },
-          },
-        },
-      },
+      // "/profile/section/{section}": {
+      //   patch: {
+      //     tags: ["Profile"],
+      //     summary: "Update a specific profile section",
+      //     security: [{ bearerAuth: [] }],
+      //     parameters: [
+      //       {
+      //         name: "section",
+      //         in: "path",
+      //         required: true,
+      //         schema: {
+      //           type: "string",
+      //           enum: [
+      //             "basicInfo",
+      //             "astroDetails",
+      //             "physicalDetails",
+      //             "education",
+      //             "career",
+      //             "familyDetails",
+      //             "address",
+      //             "lifestyle",
+      //             "aboutMe",
+      //           ],
+      //         },
+      //       },
+      //     ],
+      //     requestBody: {
+      //       required: true,
+      //       content: {
+      //         "application/json": {
+      //           schema: { type: "object" },
+      //         },
+      //       },
+      //     },
+      //     responses: {
+      //       200: { description: "Section updated successfully." },
+      //       401: { description: "Unauthorized." },
+      //     },
+      //   },
+      // },
 
-      "/profile/photos": {
-        post: {
-          tags: ["Profile"],
-          summary: "Upload single photo",
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                // ✅ yahi hona chahiye
-                schema: {
-                  type: "object",
-                  required: ["photo"],
-                  properties: {
-                    photo: {
-                      type: "string",
-                      format: "binary", // ✅ yeh line file picker deta hai
-                    },
-                    isProfilePicture: {
-                      type: "string",
-                      enum: ["true", "false"],
-                      default: "false",
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: "Photo uploaded successfully." },
-            400: { description: "No file uploaded." },
-            401: { description: "Unauthorized." },
-          },
-        },
-      },
-      "/profile/photos/multiple": {
-        post: {
-          tags: ["Profile"],
-          summary: "Upload multiple photos (max 10)",
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["photos"],
-                  properties: {
-                    photos: {
-                      type: "array",
-                      items: {
-                        type: "string",
-                        format: "binary", // ✅ file picker ke liye
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: "Photos uploaded successfully." },
-            400: { description: "No files uploaded or max 10 limit exceeded." },
-            401: { description: "Unauthorized." },
-          },
-        },
-      },
+      // "/profile/photos": {
+      //   post: {
+      //     tags: ["Profile"],
+      //     summary: "Upload single photo",
+      //     security: [{ bearerAuth: [] }],
+      //     requestBody: {
+      //       required: true,
+      //       content: {
+      //         "multipart/form-data": {
+      //           // ✅ yahi hona chahiye
+      //           schema: {
+      //             type: "object",
+      //             required: ["photo"],
+      //             properties: {
+      //               photo: {
+      //                 type: "string",
+      //                 format: "binary", // ✅ yeh line file picker deta hai
+      //               },
+      //               isProfilePicture: {
+      //                 type: "string",
+      //                 enum: ["true", "false"],
+      //                 default: "false",
+      //               },
+      //             },
+      //           },
+      //         },
+      //       },
+      //     },
+      //     responses: {
+      //       200: { description: "Photo uploaded successfully." },
+      //       400: { description: "No file uploaded." },
+      //       401: { description: "Unauthorized." },
+      //     },
+      //   },
+      // },
+      // "/profile/photos/multiple": {
+      //   post: {
+      //     tags: ["Profile"],
+      //     summary: "Upload multiple photos (max 10)",
+      //     security: [{ bearerAuth: [] }],
+      //     requestBody: {
+      //       required: true,
+      //       content: {
+      //         "multipart/form-data": {
+      //           schema: {
+      //             type: "object",
+      //             required: ["photos"],
+      //             properties: {
+      //               photos: {
+      //                 type: "array",
+      //                 items: {
+      //                   type: "string",
+      //                   format: "binary", // ✅ file picker ke liye
+      //                 },
+      //               },
+      //             },
+      //           },
+      //         },
+      //       },
+      //     },
+      //     responses: {
+      //       200: { description: "Photos uploaded successfully." },
+      //       400: { description: "No files uploaded or max 10 limit exceeded." },
+      //       401: { description: "Unauthorized." },
+      //     },
+      //   },
+      // },
 
-      "/profile/photos/{photoId}": {
-        delete: {
-          tags: ["Profile"],
-          summary: "Delete a photo",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "photoId",
-              in: "path",
-              required: true,
-              description: "Photo ID (MongoDB _id from photos array)",
-              schema: { type: "string", example: "64abc123def456" },
-            },
-          ],
-          responses: {
-            200: { description: "Photo deleted successfully." },
-            404: { description: "Photo not found." },
-            401: { description: "Unauthorized." },
-          },
-        },
-      },
+      // "/profile/photos/{photoId}": {
+      //   delete: {
+      //     tags: ["Profile"],
+      //     summary: "Delete a photo",
+      //     security: [{ bearerAuth: [] }],
+      //     parameters: [
+      //       {
+      //         name: "photoId",
+      //         in: "path",
+      //         required: true,
+      //         description: "Photo ID (MongoDB _id from photos array)",
+      //         schema: { type: "string", example: "64abc123def456" },
+      //       },
+      //     ],
+      //     responses: {
+      //       200: { description: "Photo deleted successfully." },
+      //       404: { description: "Photo not found." },
+      //       401: { description: "Unauthorized." },
+      //     },
+      //   },
+      // },
 
-      "/profile/photos/{photoId}/profile-picture": {
-        patch: {
-          tags: ["Profile"],
-          summary: "Set a photo as profile picture",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "photoId",
-              in: "path",
-              required: true,
-              description: "Photo ID jo profile picture banana hai",
-              schema: { type: "string", example: "64abc123def456" },
-            },
-          ],
-          responses: {
-            200: {
-              description: "Profile picture updated successfully.",
-              content: {
-                "application/json": {
-                  schema: {
-                    allOf: [
-                      { $ref: "#/components/schemas/Success" },
-                      {
-                        properties: {
-                          data: {
-                            type: "object",
-                            properties: {
-                              photos: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    _id: { type: "string" },
-                                    url: { type: "string" },
-                                    isProfilePicture: { type: "boolean" },
-                                    isVerified: { type: "boolean" },
-                                  },
-                                },
-                              },
-                            },
-                          },
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            },
-            404: { description: "Photo not found." },
-            401: { description: "Unauthorized." },
-          },
-        },
-      },
+      // "/profile/photos/{photoId}/profile-picture": {
+      //   patch: {
+      //     tags: ["Profile"],
+      //     summary: "Set a photo as profile picture",
+      //     security: [{ bearerAuth: [] }],
+      //     parameters: [
+      //       {
+      //         name: "photoId",
+      //         in: "path",
+      //         required: true,
+      //         description: "Photo ID jo profile picture banana hai",
+      //         schema: { type: "string", example: "64abc123def456" },
+      //       },
+      //     ],
+      //     responses: {
+      //       200: {
+      //         description: "Profile picture updated successfully.",
+      //         content: {
+      //           "application/json": {
+      //             schema: {
+      //               allOf: [
+      //                 { $ref: "#/components/schemas/Success" },
+      //                 {
+      //                   properties: {
+      //                     data: {
+      //                       type: "object",
+      //                       properties: {
+      //                         photos: {
+      //                           type: "array",
+      //                           items: {
+      //                             type: "object",
+      //                             properties: {
+      //                               _id: { type: "string" },
+      //                               url: { type: "string" },
+      //                               isProfilePicture: { type: "boolean" },
+      //                               isVerified: { type: "boolean" },
+      //                             },
+      //                           },
+      //                         },
+      //                       },
+      //                     },
+      //                   },
+      //                 },
+      //               ],
+      //             },
+      //           },
+      //         },
+      //       },
+      //       404: { description: "Photo not found." },
+      //       401: { description: "Unauthorized." },
+      //     },
+      //   },
+      // },
+
+
+
       "/profile/search": {
         get: {
           tags: ["Profile"],
@@ -711,16 +714,16 @@ const options = {
         },
       },
 
-      "/profile/stats": {
-        get: {
-          tags: ["Profile"],
-          summary: "Get profile statistics",
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: "Profile statistics fetched successfully." },
-          },
-        },
-      },
+      // "/profile/stats": {
+      //   get: {
+      //     tags: ["Profile"],
+      //     summary: "Get profile statistics",
+      //     security: [{ bearerAuth: [] }],
+      //     responses: {
+      //       200: { description: "Profile statistics fetched successfully." },
+      //     },
+      //   },
+      // },
 
       "/profile/completion": {
         get: {
@@ -735,52 +738,52 @@ const options = {
         },
       },
 
-      "/profile/privacy": {
-        patch: {
-          tags: ["Profile"],
-          summary: "Update privacy settings",
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  properties: {
-                    showPhone: { type: "boolean", example: false },
-                    showEmail: { type: "boolean", example: false },
-                    showAge: { type: "boolean", example: true },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: "Privacy settings updated successfully." },
-          },
-        },
-      },
+      // "/profile/privacy": {
+      //   patch: {
+      //     tags: ["Profile"],
+      //     summary: "Update privacy settings",
+      //     security: [{ bearerAuth: [] }],
+      //     requestBody: {
+      //       required: true,
+      //       content: {
+      //         "application/json": {
+      //           schema: {
+      //             properties: {
+      //               showPhone: { type: "boolean", example: false },
+      //               showEmail: { type: "boolean", example: false },
+      //               showAge: { type: "boolean", example: true },
+      //             },
+      //           },
+      //         },
+      //       },
+      //     },
+      //     responses: {
+      //       200: { description: "Privacy settings updated successfully." },
+      //     },
+      //   },
+      // },
 
-      "/profile/deactivate": {
-        post: {
-          tags: ["Profile"],
-          summary: "Deactivate profile (hide from search)",
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: "Profile deactivated successfully." },
-          },
-        },
-      },
+      // "/profile/deactivate": {
+      //   post: {
+      //     tags: ["Profile"],
+      //     summary: "Deactivate profile (hide from search)",
+      //     security: [{ bearerAuth: [] }],
+      //     responses: {
+      //       200: { description: "Profile deactivated successfully." },
+      //     },
+      //   },
+      // },
 
-      "/profile/activate": {
-        post: {
-          tags: ["Profile"],
-          summary: "Activate profile (show in search)",
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: "Profile activated successfully." },
-          },
-        },
-      },
+      // "/profile/activate": {
+      //   post: {
+      //     tags: ["Profile"],
+      //     summary: "Activate profile (show in search)",
+      //     security: [{ bearerAuth: [] }],
+      //     responses: {
+      //       200: { description: "Profile activated successfully." },
+      //     },
+      //   },
+      // },
 
       // ═══════════════════════════════════════════════
       // MATCH ROUTES

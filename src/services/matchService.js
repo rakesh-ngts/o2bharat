@@ -1,8 +1,42 @@
 const Profile = require('../models/Profile');
 const Match = require('../models/Match');
 const Interest = require('../models/Interest');
+const ProfileView = require('../models/ProfileView');
 const ApiError = require('../utils/ApiError');
+const { PROFILE_STATUS, GENDER, INTEREST_STATUS } = require('../utils/constants');
 const { calculateAge, calculateMatchScore } = require('../utils/helpers');
+
+/**
+ * Build a flexible query. 
+ * Gender filter is applied after fetching (not in query).
+ */
+const buildMatchQuery = (userProfile) => {
+  const query = {
+    isProfileVisible: true,
+    user: { $ne: userProfile.user._id } // Exclude self
+  };
+
+  // Don't filter by status to allow draft profiles to be matched
+  // This makes the app more usable during testing/development
+  // In production, you may want to enable this:
+  // status: { $in: [PROFILE_STATUS.ACTIVE, PROFILE_STATUS.DRAFT] }
+
+  return query;
+};
+
+/**
+ * Filter profiles by opposite gender (applied after fetching)
+ */
+const filterByOppositeGender = (profiles, userGender) => {
+  const targetGender = userGender === GENDER.MALE ? GENDER.FEMALE : GENDER.MALE;
+  
+  return profiles.filter(profile => {
+    // Gender can be in user object (populated) or in basicInfo
+    const profileGender = profile.user?.gender?.toLowerCase() || 
+                          profile.basicInfo?.gender?.toLowerCase();
+    return profileGender === targetGender;
+  });
+};
 
 /**
  * Get match suggestions for a user
@@ -11,33 +45,38 @@ const getMatchSuggestions = async (userId, options = {}) => {
   const { page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
-  // Get user's profile
-  const userProfile = await Profile.findOne({ user: userId }).populate('user', 'gender');
+  // 1. Get user's profile with user data (for gender)
+  const userProfile = await Profile.findOne({ user: userId }).populate('user');
 
   if (!userProfile) {
     throw new ApiError(404, 'Please complete your profile first.');
   }
 
-  // Get user's preferences
-  const preferences = userProfile.preferences || {};
+  // Get user's gender from User model
+  const userGender = userProfile.user?.gender?.toLowerCase();
+  
+  if (!userGender) {
+    throw new ApiError(400, 'Gender information is required for matching.');
+  }
 
-  // Build match query
-  const matchQuery = buildMatchQuery(userProfile, preferences);
+  // 2. Build Query (Flexible - no status filter, no gender filter in query)
+  const matchQuery = buildMatchQuery(userProfile);
 
-  // Get already matched/interested profile IDs
+  // 3. Exclude already interacted users
   const existingInteractions = await getExistingInteractions(userId);
+  if (existingInteractions.length > 0) {
+    matchQuery.user = { ...matchQuery.user, $nin: existingInteractions };
+  }
 
-  // Exclude already interacted profiles
-  matchQuery.user = { $nin: [...existingInteractions, userId] };
+  // 4. Fetch Profiles with user data for gender
+  const allMatches = await Profile.find(matchQuery)
+    .limit(100)
+    .populate('user', 'name isVerified gender');
 
-  // Find matching profiles
-  const matches = await Profile.find(matchQuery)
-    .sort({ lastActive: -1, createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .populate('user', 'name isVerified');
+  // 5. Filter by opposite gender (done in JS after fetching)
+  const matches = filterByOppositeGender(allMatches, userGender);
 
-  // Calculate match scores
+  // 6. Calculate scores & Filter by Preferences in memory
   const matchesWithScores = matches.map(match => {
     const score = calculateMatchScore(userProfile, match);
     return {
@@ -47,330 +86,415 @@ const getMatchSuggestions = async (userId, options = {}) => {
     };
   });
 
-  // Sort by match score
+  // 7. Sort by highest score first
   matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-  // Save match suggestions to database
-  await saveMatchSuggestions(userId, matchesWithScores);
+  // 8. Apply Pagination on the scored list
+  const paginatedMatches = matchesWithScores.slice(skip, skip + limit);
 
-  return matchesWithScores;
-};
+  // 9. Save suggestions in background
+  saveMatchSuggestions(userId, paginatedMatches).catch(e => console.error("Save Error:", e));
 
-/**
- * Build query for finding matches
- */
-const buildMatchQuery = (userProfile, preferences) => {
-  const query = {
-    isActive: true,
-    'verification.isProfileComplete': true
+  return {
+    matches: paginatedMatches,
+    pagination: {
+      currentPage: page,
+      limit: limit,
+      totalResults: matchesWithScores.length,
+      hasNextPage: matchesWithScores.length > skip + limit
+    }
   };
-
-  // Gender preference (opposite gender by default)
-  const userGender = userProfile.user.gender;
-  if (userGender === 'male') {
-    query['basicInfo.gender'] = 'female';
-  } else if (userGender === 'female') {
-    query['basicInfo.gender'] = 'male';
-  }
-
-  // Age range preference
-  if (preferences.preferredAgeMin || preferences.preferredAgeMax) {
-    const now = new Date();
-    query['basicInfo.dateOfBirth'] = {};
-    
-    if (preferences.preferredAgeMax) {
-      const minDate = new Date(now.setFullYear(now.getFullYear() - preferences.preferredAgeMax));
-      query['basicInfo.dateOfBirth'].$gte = minDate;
-    }
-    
-    if (preferences.preferredAgeMin) {
-      const maxDate = new Date(now.setFullYear(now.getFullYear() - preferences.preferredAgeMin));
-      query['basicInfo.dateOfBirth'].$lte = maxDate;
-    }
-  }
-
-  // Height preference
-  if (preferences.preferredHeightMin || preferences.preferredHeightMax) {
-    query['physicalDetails.height'] = {};
-    if (preferences.preferredHeightMin) {
-      query['physicalDetails.height'].$gte = preferences.preferredHeightMin;
-    }
-    if (preferences.preferredHeightMax) {
-      query['physicalDetails.height'].$lte = preferences.preferredHeightMax;
-    }
-  }
-
-  // Marital status preference
-  if (preferences.preferredMaritalStatus && preferences.preferredMaritalStatus.length > 0) {
-    query['astroDetails.maritalStatus'] = { $in: preferences.preferredMaritalStatus };
-  }
-
-  // Religion preference
-  if (preferences.preferredReligion) {
-    query['basicInfo.religion'] = preferences.preferredReligion;
-  }
-
-  // Caste preference
-  if (preferences.preferredCaste) {
-    query['basicInfo.caste'] = { $regex: preferences.preferredCaste, $options: 'i' };
-  }
-
-  // Education preference
-  if (preferences.preferredEducation && preferences.preferredEducation.length > 0) {
-    query['education.highestQualification'] = { $in: preferences.preferredEducation };
-  }
-
-  // Location preference
-  if (preferences.preferredLocation) {
-    query['address.state'] = { $regex: preferences.preferredLocation, $options: 'i' };
-  }
-
-  // Manglik preference
-  if (preferences.preferredManglik) {
-    if (preferences.preferredManglik === 'no') {
-      query['astroDetails.manglik'] = { $in: ['no', 'anshik'] };
-    } else if (preferences.preferredManglik === 'yes') {
-      query['astroDetails.manglik'] = 'yes';
-    }
-  }
-
-  return query;
 };
 
 /**
- * Get existing interactions (matches, interests sent/received)
- */
-const getExistingInteractions = async (userId) => {
-  // Get sent interests
-  const sentInterests = await Interest.find({ sender: userId }).select('receiver');
-  
-  // Get received interests
-  const receivedInterests = await Interest.find({ receiver: userId }).select('sender');
-  
-  // Get existing matches
-  const matches = await Match.find({
-    $or: [{ user1: userId }, { user2: userId }]
-  });
-
-  const interactedUserIds = new Set();
-  
-  sentInterests.forEach(i => interactedUserIds.add(i.receiver.toString()));
-  receivedInterests.forEach(i => interactedUserIds.add(i.sender.toString()));
-  matches.forEach(m => {
-    interactedUserIds.add(m.user1.toString());
-    interactedUserIds.add(m.user2.toString());
-  });
-
-  return Array.from(interactedUserIds);
-};
-
-/**
- * Get match reasons for display
- */
-const getMatchReasons = (userProfile, matchProfile) => {
-  const reasons = [];
-
-  // Check age compatibility
-  const userAge = calculateAge(userProfile.basicInfo?.dateOfBirth);
-  const matchAge = calculateAge(matchProfile.basicInfo?.dateOfBirth);
-  const ageDiff = Math.abs(userAge - matchAge);
-  
-  if (ageDiff <= 3) {
-    reasons.push('Age compatible');
-  }
-
-  // Check height compatibility
-  const userHeight = userProfile.physicalDetails?.height;
-  const matchHeight = matchProfile.physicalDetails?.height;
-  if (userHeight && matchHeight) {
-    reasons.push('Height preference matched');
-  }
-
-  // Check education
-  const userEducation = userProfile.preferences?.preferredEducation || [];
-  const matchEducation = matchProfile.education?.highestQualification;
-  if (matchEducation && userEducation.includes(matchEducation)) {
-    reasons.push('Education preference matched');
-  }
-
-  // Check location
-  const userLocation = userProfile.preferences?.preferredLocation;
-  const matchLocation = matchProfile.address?.state;
-  if (userLocation && matchLocation && matchLocation.toLowerCase().includes(userLocation.toLowerCase())) {
-    reasons.push('Location preference matched');
-  }
-
-  // Check religion/caste
-  if (userProfile.basicInfo?.religion === matchProfile.basicInfo?.religion) {
-    reasons.push('Same religion');
-  }
-
-  // Check manglik
-  const userManglik = userProfile.astroDetails?.manglik;
-  const matchManglik = matchProfile.astroDetails?.manglik;
-  if (userManglik === matchManglik || matchManglik === 'no') {
-    reasons.push('Manglik compatible');
-  }
-
-  return reasons.length > 0 ? reasons : ['Profile matches your preferences'];
-};
-
-/**
- * Save match suggestions to database
- */
-const saveMatchSuggestions = async (userId, matches) => {
-  // Clear old suggestions
-  await Match.deleteMany({ 
-    user1: userId, 
-    status: 'suggested',
-    createdAt: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-  });
-
-  // Save new suggestions
-  const matchDocs = matches.slice(0, 50).map(match => ({
-    user1: userId,
-    user2: match.profile.user._id,
-    matchScore: match.matchScore,
-    matchReasons: match.matchReasons,
-    status: 'suggested'
-  }));
-
-  if (matchDocs.length > 0) {
-    await Match.insertMany(matchDocs, { ordered: false });
-  }
-};
-
-/**
- * Get daily matches
+ * Get daily matches for a user
  */
 const getDailyMatches = async (userId) => {
+  // Get user's profile
+  const userProfile = await Profile.findOne({ user: userId }).populate('user');
+  
+  if (!userProfile) {
+    throw new ApiError(404, 'Please complete your profile first.');
+  }
+
+  // Get today's date (start of day)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let matches = await Match.find({
-    user1: userId,
-    status: 'suggested',
-    createdAt: { $gte: today }
+  // Check if we have today's matches cached
+  const cachedMatches = await Match.find({
+    user: userId,
+    computedAt: { $gte: today },
+    isIgnored: false
   })
-  .sort({ matchScore: -1 })
-  .limit(10)
-  .populate({
-    path: 'user2',
-    select: 'basicInfo photos education career',
-    populate: { path: 'user', select: 'name isVerified' }
-  });
+    .populate({
+      path: 'matchedProfile',
+      populate: {
+        path: 'user',
+        select: 'name isVerified gender'
+      }
+    })
+    .sort({ matchScore: -1 })
+    .limit(10);
 
-  // If no matches for today, generate new ones
-  if (matches.length === 0) {
-    const newMatches = await getMatchSuggestions(userId, { limit: 10 });
-    matches = newMatches.map(m => ({
-      user2: m.profile,
+  // If we have cached matches, return them
+  if (cachedMatches.length > 0) {
+    const formattedMatches = cachedMatches.map(m => ({
+      profile: m.matchedProfile,
       matchScore: m.matchScore,
-      matchReasons: m.matchReasons
+      matchReasons: m.matchReasons,
+      isViewed: m.isViewed,
+      isShortlisted: m.isShortlisted
     }));
+
+    return {
+      matches: formattedMatches,
+      total: formattedMatches.length,
+      message: 'Daily matches refreshed'
+    };
   }
 
-  return matches;
+  // Otherwise generate new daily matches
+  const result = await getMatchSuggestions(userId, { page: 1, limit: 10 });
+  
+  return {
+    matches: result.matches,
+    total: result.matches.length,
+    message: 'Daily matches refreshed'
+  };
 };
 
 /**
- * Get mutual matches
+ * Get mutual matches (both users liked each other)
  */
 const getMutualMatches = async (userId) => {
-  // Find accepted interests from both sides
+  // Find accepted interests where user is sender
   const sentAndAccepted = await Interest.find({
     sender: userId,
-    status: 'accepted'
-  }).select('receiver');
+    status: INTEREST_STATUS.ACCEPTED
+  })
+    .populate({
+      path: 'receiverProfile',
+      populate: {
+        path: 'user',
+        select: 'name isVerified gender'
+      }
+    })
+    .populate('receiver', 'name isVerified gender');
 
+  // Find accepted interests where user is receiver
   const receivedAndAccepted = await Interest.find({
     receiver: userId,
-    status: 'accepted'
-  }).select('sender');
+    status: INTEREST_STATUS.ACCEPTED
+  })
+    .populate({
+      path: 'senderProfile',
+      populate: {
+        path: 'user',
+        select: 'name isVerified gender'
+      }
+    })
+    .populate('sender', 'name isVerified gender');
 
-  // Find mutual matches
-  const mutualMatchIds = new Set();
-  sentAndAccepted.forEach(i => {
-    const receivedFromSame = receivedAndAccepted.find(r => r.sender.toString() === i.receiver.toString());
-    if (receivedFromSame) {
-      mutualMatchIds.add(i.receiver.toString());
+  // Format mutual matches
+  const mutualMatches = [];
+
+  sentAndAccepted.forEach(interest => {
+    mutualMatches.push({
+      profile: interest.receiverProfile,
+      matchedAt: interest.respondedAt,
+      matchId: interest._id,
+      isMutual: true
+    });
+  });
+
+  receivedAndAccepted.forEach(interest => {
+    // Avoid duplicates
+    const exists = mutualMatches.find(
+      m => m.profile && m.profile.user && 
+           m.profile.user._id.toString() === interest.sender._id.toString()
+    );
+    if (!exists) {
+      mutualMatches.push({
+        profile: interest.senderProfile,
+        matchedAt: interest.respondedAt,
+        matchId: interest._id,
+        isMutual: true
+      });
     }
   });
 
-  if (mutualMatchIds.size === 0) {
-    return [];
-  }
-
-  // Get profiles of mutual matches
-  const profiles = await Profile.find({
-    user: { $in: Array.from(mutualMatchIds) }
-  }).populate('user', 'name isVerified');
-
-  return profiles;
+  return {
+    matches: mutualMatches,
+    total: mutualMatches.length,
+    message: mutualMatches.length > 0 ? 'Mutual matches found' : 'No mutual matches yet'
+  };
 };
 
 /**
  * Get nearby profiles
  */
 const getNearbyProfiles = async (userId, radius = 100) => {
-  const userProfile = await Profile.findOne({ user: userId });
-
-  if (!userProfile || !userProfile.address?.coordinates) {
-    throw new ApiError(400, 'Location not set in profile.');
+  // Get user's profile
+  const userProfile = await Profile.findOne({ user: userId }).populate('user');
+  
+  if (!userProfile) {
+    throw new ApiError(404, 'Please complete your profile first.');
   }
 
-  const nearbyProfiles = await Profile.find({
-    user: { $ne: userId },
-    isActive: true,
-    'address.coordinates': {
-      $near: {
-        $geometry: userProfile.address.coordinates,
-        $maxDistance: radius * 1000 // Convert km to meters
-      }
-    }
-  }).limit(20).populate('user', 'name isVerified');
+  const userGender = userProfile.user?.gender?.toLowerCase();
+  const userState = userProfile.address?.current?.state;
+  const userCity = userProfile.address?.current?.city;
 
-  return nearbyProfiles;
+  // Build query for nearby profiles (no status filter)
+  const nearQuery = {
+    isProfileVisible: true,
+    user: { $ne: userId }
+  };
+
+  // First try same city
+  if (userCity) {
+    nearQuery['address.current.city'] = userCity;
+  }
+
+  let nearbyProfiles = await Profile.find(nearQuery)
+    .populate('user', 'name isVerified gender')
+    .limit(50);
+
+  // If not enough, expand to same state
+  if (nearbyProfiles.length < 10 && userState) {
+    delete nearQuery['address.current.city'];
+    nearQuery['address.current.state'] = userState;
+    
+    nearbyProfiles = await Profile.find(nearQuery)
+      .populate('user', 'name isVerified gender')
+      .limit(50);
+  }
+
+  // Filter by opposite gender
+  if (userGender) {
+    nearbyProfiles = filterByOppositeGender(nearbyProfiles, userGender);
+  }
+
+  // Calculate distance approximation and format response
+  const formattedProfiles = nearbyProfiles.map(profile => {
+    let distance = 'Unknown';
+    let distanceValue = 999;
+
+    if (profile.address?.current?.city === userCity) {
+      distance = 'Same city';
+      distanceValue = 5;
+    } else if (profile.address?.current?.state === userState) {
+      distance = 'Same state';
+      distanceValue = 50;
+    }
+
+    return {
+      profile,
+      distance,
+      distanceValue,
+      matchScore: calculateMatchScore(userProfile, profile)
+    };
+  });
+
+  // Sort by distance then by match score
+  formattedProfiles.sort((a, b) => {
+    if (a.distanceValue !== b.distanceValue) {
+      return a.distanceValue - b.distanceValue;
+    }
+    return b.matchScore - a.matchScore;
+  });
+
+  return {
+    profiles: formattedProfiles,
+    total: formattedProfiles.length,
+    radius,
+    location: {
+      city: userCity,
+      state: userState
+    }
+  };
 };
 
 /**
  * Get recently viewed profiles
  */
 const getRecentlyViewed = async (userId) => {
-  const ProfileView = require('../models/ProfileView');
+  // Get user's profile
+  const userProfile = await Profile.findOne({ user: userId });
   
+  if (!userProfile) {
+    throw new ApiError(404, 'Please complete your profile first.');
+  }
+
+  // Get recent profile views by this user
   const recentViews = await ProfileView.find({ viewer: userId })
-    .sort({ viewedAt: -1 })
-    .limit(20)
     .populate({
       path: 'profile',
-      populate: { path: 'user', select: 'name isVerified' }
-    });
+      populate: {
+        path: 'user',
+        select: 'name isVerified gender'
+      }
+    })
+    .sort({ viewedAt: -1 })
+    .limit(50);
 
-  return recentViews.map(v => v.profile);
+  // Format response
+  const viewedProfiles = recentViews
+    .filter(view => view.profile) // Ensure profile exists
+    .map(view => ({
+      profile: view.profile,
+      viewedAt: view.viewedAt,
+      deviceType: view.deviceType
+    }));
+
+  return {
+    profiles: viewedProfiles,
+    total: viewedProfiles.length,
+    message: viewedProfiles.length > 0 ? 'Recently viewed profiles' : 'No recently viewed profiles'
+  };
 };
 
 /**
  * Get profile visitors
  */
 const getProfileVisitors = async (userId) => {
-  const ProfileView = require('../models/ProfileView');
+  // Get user's profile
+  const userProfile = await Profile.findOne({ user: userId });
   
-  const user = await Profile.findOne({ user: userId });
-
-  if (!user) {
-    throw new ApiError(404, 'Profile not found.');
+  if (!userProfile) {
+    throw new ApiError(404, 'Please complete your profile first.');
   }
 
-  const visitors = await ProfileView.find({ profile: user._id })
-    .sort({ viewedAt: -1 })
-    .limit(50)
+  // Get visitors who viewed this user's profile
+  const visitorViews = await ProfileView.find({ profile: userProfile._id })
     .populate({
       path: 'viewer',
-      populate: { path: 'user', select: 'name isVerified' }
+      select: 'name isVerified gender'
+    })
+    .sort({ viewedAt: -1 })
+    .limit(50);
+
+  // Get visitor profiles for more details
+  const visitorIds = visitorViews.map(v => v.viewer?._id).filter(id => id);
+  
+  const visitorProfiles = await Profile.find({ 
+    user: { $in: visitorIds },
+    status: PROFILE_STATUS.ACTIVE,
+    isProfileVisible: true
+  }).populate('user', 'name isVerified gender');
+
+  // Create a map for quick profile lookup
+  const profileMap = new Map();
+  visitorProfiles.forEach(p => {
+    profileMap.set(p.user?._id?.toString(), p);
+  });
+
+  // Format response with visitor details
+  const visitors = visitorViews
+    .filter(view => view.viewer && profileMap.has(view.viewer._id.toString()))
+    .map(view => {
+      const profile = profileMap.get(view.viewer._id.toString());
+      return {
+        viewer: view.viewer,
+        profile,
+        viewedAt: view.viewedAt,
+        deviceType: view.deviceType,
+        isVerified: view.viewer?.isVerified || false
+      };
     });
 
-  return visitors;
+  return {
+    visitors,
+    total: visitors.length,
+    totalViews: userProfile.stats?.profileViews || 0,
+    message: visitors.length > 0 ? 'Profile visitors' : 'No profile visitors yet'
+  };
+};
+
+/**
+ * Helper to get IDs of people already liked/rejected/matched
+ */
+const getExistingInteractions = async (userId) => {
+  const [interestsSent, interestsReceived, matches] = await Promise.all([
+    Interest.find({ sender: userId }).select('receiver'),
+    Interest.find({ receiver: userId }).select('sender'),
+    Match.find({ user: userId }).select('matchedProfile')
+  ]);
+
+  const interactedIds = new Set();
+  interestsSent.forEach(i => interactedIds.add(i.receiver.toString()));
+  interestsReceived.forEach(i => interactedIds.add(i.sender.toString()));
+  matches.forEach(m => {
+    if (m.matchedProfile) {
+      interactedIds.add(m.matchedProfile.toString());
+    }
+  });
+
+  return Array.from(interactedIds);
+};
+
+/**
+ * Logic to generate readable match reasons
+ */
+const getMatchReasons = (userProfile, matchProfile) => {
+  const reasons = [];
+  const prefs = userProfile.preferences || {};
+
+  // Location Match
+  if (matchProfile.address?.current?.state === userProfile.address?.current?.state) {
+    reasons.push('From your state');
+  }
+
+  // Education Match
+  if (prefs.partnerEducation?.includes(matchProfile.education?.highestQualification)) {
+    reasons.push('Education matches your preference');
+  }
+
+  // Marital Status
+  if (matchProfile.maritalStatus === userProfile.maritalStatus) {
+    reasons.push('Same marital status');
+  }
+
+  // Age compatibility
+  const userAge = calculateAge(userProfile.basicInfo?.dateOfBirth);
+  const matchAge = calculateAge(matchProfile.basicInfo?.dateOfBirth);
+  if (userAge && matchAge && Math.abs(userAge - matchAge) <= 5) {
+    reasons.push('Age compatible');
+  }
+
+  // Height compatibility
+  if (userProfile.physicalDetails?.height && matchProfile.physicalDetails?.height) {
+    const heightDiff = Math.abs(userProfile.physicalDetails.height - matchProfile.physicalDetails.height);
+    if (heightDiff <= 15) {
+      reasons.push('Height compatible');
+    }
+  }
+
+  return reasons.length > 0 ? reasons : ['Matches your basic criteria'];
+};
+
+/**
+ * Save suggestions for the 'Daily Matches' feature
+ */
+const saveMatchSuggestions = async (userId, matches) => {
+  // Only save if we have matches
+  if (!matches || matches.length === 0) return;
+
+  // Remove old suggestions
+  await Match.deleteMany({ user: userId });
+
+  const matchDocs = matches.slice(0, 20).map(m => ({
+    user: userId,
+    matchedProfile: m.profile.user?._id || m.profile.user,
+    matchScore: m.matchScore,
+    matchReasons: m.matchReasons,
+    computedAt: new Date()
+  }));
+
+  if (matchDocs.length > 0) {
+    await Match.insertMany(matchDocs, { ordered: false });
+  }
 };
 
 module.exports = {
@@ -379,5 +503,7 @@ module.exports = {
   getMutualMatches,
   getNearbyProfiles,
   getRecentlyViewed,
-  getProfileVisitors
+  getProfileVisitors,
+  getExistingInteractions,
+  getMatchReasons
 };

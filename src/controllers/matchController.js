@@ -12,14 +12,12 @@ const getMatchSuggestions = async (req, res, next) => {
     const userId = req.user._id;
     const { page, limit } = req.query;
 
-    const matches = await matchService.getMatchSuggestions(userId, {
+    const result = await matchService.getMatchSuggestions(userId, {
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 20
     });
 
-    res.status(200).json(
-      new ApiResponse(200, matches, 'Match suggestions fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Match suggestions fetched successfully.');
   } catch (error) {
     next(error);
   }
@@ -34,11 +32,9 @@ const getDailyMatches = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    const matches = await matchService.getDailyMatches(userId);
+    const result = await matchService.getDailyMatches(userId);
 
-    res.status(200).json(
-      new ApiResponse(200, matches, 'Daily matches fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Daily matches fetched successfully.');
   } catch (error) {
     next(error);
   }
@@ -53,11 +49,9 @@ const getMutualMatches = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    const matches = await matchService.getMutualMatches(userId);
+    const result = await matchService.getMutualMatches(userId);
 
-    res.status(200).json(
-      new ApiResponse(200, matches, 'Mutual matches fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Mutual matches fetched successfully.');
   } catch (error) {
     next(error);
   }
@@ -73,14 +67,12 @@ const getNearbyProfiles = async (req, res, next) => {
     const userId = req.user._id;
     const { radius } = req.query;
 
-    const profiles = await matchService.getNearbyProfiles(
+    const result = await matchService.getNearbyProfiles(
       userId,
       parseInt(radius) || 100
     );
 
-    res.status(200).json(
-      new ApiResponse(200, profiles, 'Nearby profiles fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Nearby profiles fetched successfully.');
   } catch (error) {
     next(error);
   }
@@ -95,11 +87,9 @@ const getRecentlyViewed = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    const profiles = await matchService.getRecentlyViewed(userId);
+    const result = await matchService.getRecentlyViewed(userId);
 
-    res.status(200).json(
-      new ApiResponse(200, profiles, 'Recently viewed profiles fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Recently viewed profiles fetched successfully.');
   } catch (error) {
     next(error);
   }
@@ -114,11 +104,9 @@ const getProfileVisitors = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    const visitors = await matchService.getProfileVisitors(userId);
+    const result = await matchService.getProfileVisitors(userId);
 
-    res.status(200).json(
-      new ApiResponse(200, visitors, 'Profile visitors fetched successfully.')
-    );
+    return ApiResponse.success(res, result, 'Profile visitors fetched successfully.');
   } catch (error) {
     next(error);
   }

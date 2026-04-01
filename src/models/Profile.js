@@ -78,7 +78,7 @@ privacySettings: {
     astroDetails: {
       rashi: {
         type: String,
-        enum: Object.values(RASHI),
+        // enum: Object.values(RASHI),
         default: null,
       },
       nakshatra: {
@@ -88,12 +88,12 @@ privacySettings: {
       },
       manglik: {
         type: String,
-        enum: Object.values(MANGLIK_STATUS),
+        // enum: Object.values(MANGLIK_STATUS),
         default: MANGLIK_STATUS.NO,
       },
       nadi: {
         type: String,
-        enum: Object.values(NADI_TYPES),
+        // enum: Object.values(NADI_TYPES),
         default: NADI_TYPES.NONE,
       },
       gotra: {
@@ -107,7 +107,7 @@ privacySettings: {
     physicalDetails: {
       height: {
         type: Number, // in cm
-        required: [true, 'Height is required'],
+    
       },
       weight: {
         type: Number, // in kg
@@ -115,17 +115,17 @@ privacySettings: {
       },
       bodyType: {
         type: String,
-        enum: ['slim', 'average', 'athletic', 'heavy'],
+        // enum: ['slim', 'average', 'athletic', 'heavy'],
         default: 'average',
       },
       complexion: {
         type: String,
-        enum: ['fair', 'wheatish', 'dark'],
+        // enum: ['fair', 'wheatish', 'dark'],
         default: 'wheatish',
       },
       physicalStatus: {
         type: String,
-        enum: ['normal', 'physically_challenged'],
+        // enum: ['normal', 'physically_challenged'],
         default: 'normal',
       },
     },
@@ -133,8 +133,8 @@ privacySettings: {
     // ============ MARITAL & FAMILY STATUS ============
     maritalStatus: {
       type: String,
-      enum: Object.values(MARITAL_STATUS),
-      required: [true, 'Marital status is required'],
+      // enum: Object.values(MARITAL_STATUS),
+   
       default: MARITAL_STATUS.NEVER_MARRIED,
     },
     children: {
@@ -156,8 +156,8 @@ privacySettings: {
     education: {
       highestQualification: {
         type: String,
-        enum: Object.values(EDUCATION_LEVELS),
-        required: [true, 'Qualification is required'],
+        // enum: Object.values(EDUCATION_LEVELS),
+       
       },
       qualification: {
         type: String, // e.g., "B.Tech in Computer Science"
@@ -189,7 +189,7 @@ privacySettings: {
       },
       annualIncome: {
         type: String,
-        enum: Object.values(INCOME_RANGE),
+        // enum: Object.values(INCOME_RANGE),
         default: null,
       },
       incomeDisplay: {
@@ -257,17 +257,17 @@ privacySettings: {
       },
       familyType: {
         type: String,
-        enum: ['joint', 'nuclear'],
+        // enum: ['joint', 'nuclear'],
         default: 'nuclear',
       },
       familyValues: {
         type: String,
-        enum: ['traditional', 'moderate', 'liberal'],
+        // enum: ['traditional', 'moderate', 'liberal'],
         default: 'moderate',
       },
       familyStatus: {
         type: String,
-        enum: ['middle', 'upper_middle', 'rich', 'affluent'],
+        // enum: ['middle', 'upper_middle', 'rich', 'affluent'],
         default: 'middle',
       },
     },
@@ -349,17 +349,17 @@ privacySettings: {
     lifestyle: {
       diet: {
         type: String,
-        enum: Object.values(DIET),
+        // enum: Object.values(DIET),
         default: DIET.VEGETARIAN,
       },
       smoking: {
         type: String,
-        enum: Object.values(SMOKING),
+        // enum: Object.values(SMOKING),
         default: SMOKING.NO,
       },
       drinking: {
         type: String,
-        enum: Object.values(DRINKING),
+        // enum: Object.values(DRINKING),
         default: DRINKING.NO,
       },
       hobbies: [{
@@ -387,8 +387,11 @@ privacySettings: {
       },
       partnerMaritalStatus: [{
         type: String,
-        enum: Object.values(MARITAL_STATUS),
+        // enum: Object.values(MARITAL_STATUS),
       }],
+      genderPre:{
+        type:String
+      },
       partnerEducation: [{
         type: String,
       }],
@@ -407,7 +410,7 @@ privacySettings: {
       }],
       partnerDiet: [{
         type: String,
-        enum: Object.values(DIET),
+        // enum: Object.values(DIET),
       }],
       partnerManglik: {
         type: String,
@@ -415,7 +418,7 @@ privacySettings: {
       },
       partnerNadi: [{
         type: String,
-        enum: Object.values(NADI_TYPES),
+        // enum: Object.values(NADI_TYPES),
       }],
     },
     
@@ -447,7 +450,7 @@ privacySettings: {
     photos: [{
       url: {
         type: String,
-        required: true,
+      
       },
       isPrimary: {
         type: Boolean,
@@ -474,6 +477,31 @@ privacySettings: {
       default: 0,
       min: 0,
       max: 100,
+    },
+    // Detailed completion breakdown
+    completion: {
+      percentage: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
+      sections: {
+        basicInfo: { type: Number, default: 0 },
+        astroDetails: { type: Number, default: 0 },
+        physicalDetails: { type: Number, default: 0 },
+        education: { type: Number, default: 0 },
+        career: { type: Number, default: 0 },
+        familyDetails: { type: Number, default: 0 },
+        address: { type: Number, default: 0 },
+        lifestyle: { type: Number, default: 0 },
+        preferences: { type: Number, default: 0 },
+        photos: { type: Number, default: 0 },
+      },
+      lastUpdated: {
+        type: Date,
+        default: Date.now,
+      },
     },
     isProfileVisible: {
       type: Boolean,
@@ -591,9 +619,8 @@ profileSchema.virtual('primaryPhoto').get(function () {
   return primary?.url || null;
 });
 
-// Method to calculate profile completion
+// Method to calculate profile completion with detailed breakdown
 profileSchema.methods.calculateCompletion = function () {
-  let completion = 0;
   const weights = {
     basicInfo: 20,
     astroDetails: 10,
@@ -607,37 +634,114 @@ profileSchema.methods.calculateCompletion = function () {
     photos: 5,
   };
 
-  // Basic Info
-  if (this.basicInfo?.name && this.basicInfo?.dateOfBirth) completion += weights.basicInfo;
-  
-  // Astro Details
-  if (this.astroDetails?.rashi || this.astroDetails?.gotra) completion += weights.astroDetails;
-  
-  // Physical Details
-  if (this.physicalDetails?.height) completion += weights.physicalDetails;
-  
-  // Education
-  if (this.education?.highestQualification) completion += weights.education;
-  
-  // Career
-  if (this.career?.workingAs || this.career?.workingWith) completion += weights.career;
-  
-  // Family Details
-  if (this.familyDetails?.father?.name || this.familyDetails?.mother?.name) completion += weights.familyDetails;
-  
-  // Address
-  if (this.address?.current?.city) completion += weights.address;
-  
-  // Lifestyle
-  if (this.lifestyle?.diet) completion += weights.lifestyle;
-  
-  // Preferences
-  if (this.preferences?.partnerAgeRange?.min) completion += weights.preferences;
-  
-  // Photos
-  if (this.photos?.length > 0) completion += weights.photos;
+  const sections = {
+    basicInfo: 0,
+    astroDetails: 0,
+    physicalDetails: 0,
+    education: 0,
+    career: 0,
+    familyDetails: 0,
+    address: 0,
+    lifestyle: 0,
+    preferences: 0,
+    photos: 0,
+  };
 
-  return Math.min(completion, 100);
+  // Basic Info - Check multiple fields
+  const basicInfoFields = [
+    this.basicInfo?.subCaste,
+    this.basicInfo?.timeOfBirth,
+    this.basicInfo?.placeOfBirth,
+    this.basicInfo?.about,
+  ].filter(f => f).length;
+  if (this.basicInfo?.about || this.basicInfo?.subCaste || this.basicInfo?.placeOfBirth) {
+    sections.basicInfo = Math.min(100, Math.round((basicInfoFields / 4) * weights.basicInfo));
+  }
+
+  // Astro Details
+  const astroFields = [
+    this.astroDetails?.rashi,
+    this.astroDetails?.nakshatra,
+    this.astroDetails?.gotra,
+    this.astroDetails?.manglik,
+  ].filter(f => f).length;
+  sections.astroDetails = Math.round((astroFields / 4) * weights.astroDetails);
+
+  // Physical Details
+  const physicalFields = [
+    this.physicalDetails?.height,
+    this.physicalDetails?.weight,
+    this.physicalDetails?.bodyType,
+    this.physicalDetails?.complexion,
+  ].filter(f => f).length;
+  sections.physicalDetails = Math.round((physicalFields / 4) * weights.physicalDetails);
+
+  // Education
+  const eduFields = [
+    this.education?.highestQualification,
+    this.education?.qualification,
+    this.education?.college,
+  ].filter(f => f).length;
+  sections.education = Math.round((eduFields / 3) * weights.education);
+
+  // Career
+  const careerFields = [
+    this.career?.workingWith,
+    this.career?.workingAs,
+    this.career?.company,
+    this.career?.annualIncome,
+  ].filter(f => f).length;
+  sections.career = Math.round((careerFields / 4) * weights.career);
+
+  // Family Details
+  const familyFields = [
+    this.familyDetails?.father?.name,
+    this.familyDetails?.mother?.name,
+    this.familyDetails?.familyType,
+    this.familyDetails?.familyValues,
+  ].filter(f => f).length;
+  sections.familyDetails = Math.round((familyFields / 4) * weights.familyDetails);
+
+  // Address
+  const addressFields = [
+    this.address?.current?.city,
+    this.address?.current?.state,
+    this.address?.current?.pincode,
+  ].filter(f => f).length;
+  sections.address = Math.round((addressFields / 3) * weights.address);
+
+  // Lifestyle
+  const lifestyleFields = [
+    this.lifestyle?.diet,
+    this.lifestyle?.smoking,
+    this.lifestyle?.drinking,
+  ].filter(f => f).length;
+  sections.lifestyle = Math.round((lifestyleFields / 3) * weights.lifestyle);
+
+  // Preferences
+  const prefFields = [
+    this.preferences?.partnerAgeRange?.min,
+    this.preferences?.partnerHeightRange?.min,
+    this.preferences?.partnerMaritalStatus?.length > 0,
+  ].filter(f => f).length;
+  sections.preferences = Math.round((prefFields / 3) * weights.preferences);
+
+  // Photos
+  if (this.photos?.length > 0) {
+    sections.photos = weights.photos;
+  }
+
+  // Calculate total
+  const totalCompletion = Object.values(sections).reduce((a, b) => a + b, 0);
+
+  // Update completion object
+  this.completion = {
+    percentage: Math.min(totalCompletion, 100),
+    sections: sections,
+    lastUpdated: new Date(),
+  };
+
+  return Math.min(totalCompletion, 100);
 };
 
 // Pre-save middleware

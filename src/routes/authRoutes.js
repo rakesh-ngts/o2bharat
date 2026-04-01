@@ -121,7 +121,7 @@ const resetPasswordValidation = [
 
 // Public routes
 router.post('/register', authLimiter, registerValidation, authController.register);
-router.post('/login', authLimiter, loginValidation, authController.login);
+router.post('/login',  loginValidation, authController.login);
 router.post('/verify-otp', otpLimiter, otpValidation, authController.verifyOTP);
 router.post('/resend-otp', otpLimiter, authController.resendOTP);
 router.post('/forgot-password', otpLimiter, authController.forgotPassword);
