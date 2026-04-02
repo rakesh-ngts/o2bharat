@@ -98,7 +98,7 @@ if (config.NODE_ENV === 'production') {
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // API Routes
-// app.use('/api/health', require('./routes/health.route'));
+app.use('/api/health', require('./routes/health.route'));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/matches', matchRoutes);

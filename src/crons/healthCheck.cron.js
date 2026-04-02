@@ -13,7 +13,7 @@ const healthCheckCron = () => {
 
   // Har 4 minute mein chalega (Render sleep prevent)
   cron.schedule(
-    "*/45 * * * * *",
+    "*/35 * * * * *",
     async () => {
       try {
         const url = `${process.env.BASE_URL}/api/health`;

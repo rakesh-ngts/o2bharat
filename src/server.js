@@ -19,7 +19,7 @@ mongoose.connect(config.MONGODB_URI).then(() => {
     logger.info(`Server started — port ${PORT} — env ${config.NODE_ENV}`);
 
     // ✅ Server ready hone ke baad crons start karo
-    // initCrons();
+    initCrons();
   });
 
   // Unhandled rejections
