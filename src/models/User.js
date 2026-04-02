@@ -50,12 +50,52 @@ const userSchema = new mongoose.Schema(
       required: [true, "Date of birth is required"],
     },
 
-    address: {
-      type: String,
-      required: [true, "Address is required"],
-      trim: true,
+     address: {
+      current: {
+        address: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        city: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        state: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        country: {
+          type: String,
+          trim: true,
+          default: 'India',
+        },
+        pincode: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+      },
+      native: {
+        village: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        district: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        state: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+      },
     },
-
     community: {
       type: String,
       trim: true,

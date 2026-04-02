@@ -5,6 +5,7 @@ const {
   DIET, SMOKING, DRINKING 
 } = require('../utils/constants');
 const { calculateAge, generateProfileId } = require('../utils/helpers');
+const { boolean } = require('joi');
 
 /**
  * Profile Schema - Detailed matrimonial profile
@@ -53,11 +54,7 @@ privacySettings: {
       trim: true,
       default: null,
     },
-      
-      // dateOfBirth: {
-      //   type: Date,
-      //   required: [true, 'Date of birth is required'],
-      // },
+    
       timeOfBirth: {
         type: String,
         default: null,
@@ -67,11 +64,29 @@ privacySettings: {
         trim: true,
         default: '',
       },
-      about: {
+    about: {      
+      bio:{
         type: String,
         maxlength: [2000, 'About cannot exceed 2000 characters'],
         default: '',
       },
+      languages:{
+        type:String,
+        default: '',
+      },
+      disability:{
+        type: String,
+        default:'',
+      },
+      thalassemia:{
+        type: String,
+        default:'',
+      },
+      hiv:{
+        type: Boolean,
+        default: false,
+      },
+    },
     },
     
     // ============ ASTRO DETAILS ============
@@ -121,7 +136,7 @@ privacySettings: {
       complexion: {
         type: String,
         // enum: ['fair', 'wheatish', 'dark'],
-        default: 'wheatish',
+        default: '',
       },
       physicalStatus: {
         type: String,
@@ -172,12 +187,17 @@ privacySettings: {
     },
     
     career: {
+      aboutWork:{
+        type: String,
+         maxlength: [2000, 'About cannot exceed 2000 characters'],
+        default:''
+      },
       workingWith: {
         type: String, // e.g., "Private Company", "Government", "Business"
         trim: true,
         default: '',
       },
-      workingAs: {
+      occupation: {
         type: String, // Job title
         trim: true,
         default: '',
@@ -202,6 +222,7 @@ privacySettings: {
     // ============ FAMILY DETAILS ============
     familyDetails: {
       father: {
+      
         name: {
           type: String,
           trim: true,
@@ -218,6 +239,7 @@ privacySettings: {
           default: '',
         },
       },
+
       mother: {
         name: {
           type: String,
@@ -244,16 +266,19 @@ privacySettings: {
           type: Number,
           default: 0,
         },
-        brotherDetails: [{
-          name: String,
-          occupation: String,
-          maritalStatus: String,
-        }],
-        sisterDetails: [{
-          name: String,
-          occupation: String,
-          maritalStatus: String,
-        }],
+       marriedBrother:{
+        type: Number,
+        default:0
+       },
+       marriedSister:{
+        type:Number,
+        default:0
+       },
+      livingWithParents:{
+        type: Boolean,
+        default: true,
+      }
+       
       },
       familyType: {
         type: String,
@@ -272,78 +297,16 @@ privacySettings: {
       },
     },
     
-    // ============ ADDRESS DETAILS ============
-    address: {
-      current: {
-        address: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-        city: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-        state: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-        country: {
-          type: String,
-          trim: true,
-          default: 'India',
-        },
-        pincode: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-      },
-      native: {
-        village: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-        district: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-        state: {
-          type: String,
-          trim: true,
-          default: '',
-        },
-      },
-    },
-    
-    // ============ RELIGIOUS & COMMUNITY ============
-    // religion: {
-    //   type: String,
-    //   trim: true,
-    //   default: 'Hindu',
-    // },
-    // caste: {
-    //   type: String,
-    //   trim: true,
-    //   default: '',
-    // },
-    // subCaste: {
-    //   type: String,
-    //   trim: true,
-    //   default: '',
-    // },
+  
     motherTongue: {
       type: String,
       trim: true,
       default: 'Hindi',
     },
-    languages: [{
-      type: String,
-    }],
+    languages: {
+      type: [String],
+      default:[]
+    },
     
     // ============ LIFESTYLE ============
     lifestyle: {
@@ -362,12 +325,51 @@ privacySettings: {
         // enum: Object.values(DRINKING),
         default: DRINKING.NO,
       },
-      hobbies: [{
-        type: String,
-      }],
+      hobbies: {
+         type: [String],
+         default:[]
+      },
       interests: [{
-        type: String,
+         type: [String],
+         default:[]
       }],
+      favouriteMusic:[{
+        type: [String],
+        default:[]
+      }],
+       favouriteBooks:{
+        type:[String],
+        default:[]
+      },
+      dressStyle:{
+        type: [String],
+        default:[]
+      },
+      sports:{ 
+         type: [String],
+         default:[]
+      },
+      cuisine:{
+         type: [String],
+         default:[]
+      },
+      Movies:{
+        type:String,
+        default:''
+      },
+      favRead:{
+        type:String,
+        default:''
+      },
+      tvShow:{
+        type:String,
+        default:''
+      },
+      vocationDestination:{
+        type:String,
+        default:''
+      }
+
     },
     
     // ============ PREFERENCES ============
@@ -687,7 +689,7 @@ profileSchema.methods.calculateCompletion = function () {
   // Career
   const careerFields = [
     this.career?.workingWith,
-    this.career?.workingAs,
+    this.career?.occupation,
     this.career?.company,
     this.career?.annualIncome,
   ].filter(f => f).length;
